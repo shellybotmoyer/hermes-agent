@@ -1514,6 +1514,11 @@ def _dispatch_lane_task(
     profile_exists = _profile_exists_fn()
     if profile_exists is not None and not profile_exists(assignee):
         result.skipped_nonspawnable.append(task_id)
+        # Write a per-task event so `hermes kanban tail` surfaces why the card
+        # never spawned (issue #122422).  Mirrors the respawn_guarded pattern above.
+        if not dry_run:
+            with _kb.write_txn(conn):
+                _kb._append_event(conn, task_id, "skipped_nonspawnable", {"assignee": assignee})
         return False
     # Per-profile cap: one profile's local model / API quota / browser pool
     # must not be overwhelmed by a fan-out even with global headroom.
